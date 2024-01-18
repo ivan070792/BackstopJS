@@ -7,12 +7,14 @@ const _ = require('lodash');
 const ensureDirectoryPath = require('./ensureDirectoryPath');
 const injectBackstopTools = require('../../capture/backstopTools.js');
 const engineTools = require('./engineTools');
+const { log } = require('console');
 
 const MIN_CHROME_VERSION = 62;
 const TEST_TIMEOUT = 60000;
 const DEFAULT_FILENAME_TEMPLATE = '{configId}_{scenarioLabel}_{selectorIndex}_{selectorLabel}_{viewportIndex}_{viewportLabel}';
 const DEFAULT_BITMAPS_TEST_DIR = 'bitmaps_test';
 const DEFAULT_BITMAPS_REFERENCE_DIR = 'bitmaps_reference';
+const DEFAULT_PREDEFINED_CONTENT_SELECTORS_DIR = 'code';
 const SELECTOR_NOT_FOUND_PATH = '/capture/resources/notFound.png';
 const HIDDEN_SELECTOR_PATH = '/capture/resources/notVisible.png';
 const ERROR_SELECTOR_PATH = '/capture/resources/unexpectedErrorSm.png';
@@ -30,6 +32,7 @@ module.exports = function (args) {
 
   config._bitmapsTestPath = config.paths.bitmaps_test || DEFAULT_BITMAPS_TEST_DIR;
   config._bitmapsReferencePath = config.paths.bitmaps_reference || DEFAULT_BITMAPS_REFERENCE_DIR;
+  config._bitmapsPredefinedContentSelectors = config.paths.bitmaps_reference + '/' + config.paths.bitmaps_predefined_content_selectors || DEFAULT_PREDEFINED_CONTENT_SELECTORS_DIR;
   config._fileNameTemplate = config.fileNameTemplate || DEFAULT_FILENAME_TEMPLATE;
   config._outputFileFormatSuffix = '.' + ((config.outputFormat && config.outputFormat.match(/jpg|jpeg/)) || 'png');
   config._configId = config.id || engineTools.genHash(config.backstopConfigFileName);
@@ -201,6 +204,64 @@ async function processScenarioView (scenario, variantOrScenarioLabelSafe, scenar
 
     // reinstall tools in case onReadyScript has loaded a new URL.
     await injectBackstopTools(page);
+
+    // --- PREDEFINED CONTENT SELECTORS ---
+    await fs.ensureDir(config._bitmapsPredefinedContentSelectors)
+    if(_.has(scenario, 'predefinedContentSelectors')){
+      const predefinedContentSelectors = async () => {
+        if(isReference){
+          // --- SAVE PREDEFINED CONTENT SELECTORS IN FILES ---
+          return Promise.all(
+            scenario.predefinedContentSelectors.map(async (selector) => {
+              const code = await page
+                .evaluate((sel) => {
+                  let htmls = {}
+                  document.querySelectorAll(sel.selector).forEach(s => {
+                    htmls[sel.selector] = s.innerHTML
+                  })
+                  return htmls
+                }, selector);
+                for (selector in code){
+                  fs.writeFile( config._bitmapsPredefinedContentSelectors + '/'+ viewport.label + '_' + selector +'.html', code[selector])
+                }
+            })
+          );
+        }else{
+          return Promise.all(
+            // --- INSERT PREDEFINED CONTENT SELECTORS FROM A FILE ---
+            scenario.predefinedContentSelectors.map(async (selector) => {
+                fs.readdir(config._bitmapsPredefinedContentSelectors, async (err, list) => {
+                  if (err) {
+                    console.log(err.stack);
+                    reject(err);
+                  }
+                  list.forEach(async fileName => {
+                    const filePath = config._bitmapsPredefinedContentSelectors + '/' + fileName
+                    const filePathName = path.parse(fileName).name
+                    const fileViewport = filePathName.split('_')[0]
+                    const selectorName = filePathName.split('_')[1]
+                    if(fileViewport === viewport.label){
+                      fs.readFile(filePath, 'utf8', async (err, data) => {
+                        if (err) {
+                          console.log(err.stack);
+                          reject(err);
+                        }
+                        await page
+                        .evaluate((sel, data, selectorName) => {
+                          document.querySelectorAll(selectorName).forEach(s => {
+                            s.innerHTML = data;
+                          });
+                        }, selector, data, selectorName);
+                      })
+                    }
+                  })
+                })
+            })
+          );
+        }
+      };
+      await predefinedContentSelectors();
+    }
 
     // --- HIDE SELECTORS ---
     if (_.has(scenario, 'hideSelectors')) {

@@ -182,6 +182,7 @@ Scenario properties are described throughout this document and **processed seque
 | `readyTimeout`           | Timeout for readyEvent and readySelector (default: 30000ms)                                                                    |
 | `delay`                  | Wait for x milliseconds                                                                                                        |
 | `hideSelectors`          | Array of selectors set to visibility: hidden                                                                                  |
+| `predefinedContentSelectors` | Array of objects with selector parameters                                                                                 |
 | `removeSelectors`        | Array of selectors set to display: none                                                                                        |
 | `onReadyScript`          | After the above conditions are met -- use this script to modify UI state prior to screenshots, e.g., hovers, clicks, etc.     |
 | `keyPressSelectors`      | Takes an array of selectors and string values -- simulates multiple sequential keypress interactions.                         |
@@ -376,9 +377,14 @@ In the following case, BackstopJS would wait for one second after the string `ba
 }
 ```
 
-#### Dealing With Dynamic Content
+#### Dealing With Dynamic Content (added in fork)
 
-For obvious reasons, this screenshot approach is not optimal for testing live dynamic content. The best way to test a dynamic app would be to use a known static content data stub – or ideally many content stubs of varying lengths which, regardless of input length, should produce certain specific bitmap output.
+```json
+"predefinedContentSelectors": [
+  {"selector": ".selector"},
+  {"selector": ".selector"},
+]
+```
 
 ##### Hiding Selectors
 
