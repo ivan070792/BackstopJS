@@ -71,7 +71,9 @@ async function processScenarioView (scenario, variantOrScenarioLabelSafe, scenar
   const VP_H = viewport.height || viewport.viewport.height;
 
   const puppeteerArgs = Object.assign(
-    {},
+    {
+      executablePath: '/usr/bin/google-chrome'
+    },
     {
       ignoreHTTPSErrors: true,
       headless: config.debugWindow ? false : config?.engineOptions?.headless || 'new'
@@ -222,7 +224,7 @@ async function processScenarioView (scenario, variantOrScenarioLabelSafe, scenar
                   return htmls
                 }, selector);
                 for (selector in code){
-                  fs.writeFile( config._bitmapsPredefinedContentSelectors + '/'+ viewport.label + '_' + selector +'.html', code[selector])
+                  fs.writeFile( config._bitmapsPredefinedContentSelectors + '/'+ viewport.label + '_' + scenario.label + '_' + selector +'.html', code[selector])
                 }
             })
           );
@@ -238,20 +240,21 @@ async function processScenarioView (scenario, variantOrScenarioLabelSafe, scenar
                   list.forEach(async fileName => {
                     const filePath = config._bitmapsPredefinedContentSelectors + '/' + fileName
                     const filePathName = path.parse(fileName).name
-                    const fileViewport = filePathName.split('_')[0]
-                    const selectorName = filePathName.split('_')[1]
-                    if(fileViewport === viewport.label){
+                    const viewportName = filePathName.split('_')[0]
+                    const scenarioLabel = filePathName.split('_')[1]
+                    const selectorString = filePathName.split('_')[2]
+                    if(viewportName === viewport.label && scenarioLabel === scenario.label && selectorString === selector){
                       fs.readFile(filePath, 'utf8', async (err, data) => {
                         if (err) {
                           console.log(err.stack);
                           reject(err);
                         }
                         await page
-                        .evaluate((sel, data, selectorName) => {
-                          document.querySelectorAll(selectorName).forEach(s => {
+                        .evaluate((sel, data) => {
+                          document.querySelectorAll(sel).forEach(s => {
                             s.innerHTML = data;
                           });
-                        }, selector, data, selectorName);
+                        }, selectorString, data);
                       })
                     }
                   })
