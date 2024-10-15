@@ -23,10 +23,7 @@ const DOCUMENT_SELECTOR = 'document';
 const NOCLIP_SELECTOR = 'body:noclip';
 const VIEWPORT_SELECTOR = 'viewport';
 
-module.exports = function (args) {
-  const scenario = args.scenario;
-  const viewport = args.viewport;
-  const config = args.config;
+module.exports = function ({ scenario, viewport, config }) {
   const scenarioLabelSafe = engineTools.makeSafe(scenario.label);
   const variantOrScenarioLabelSafe = scenario._parent ? engineTools.makeSafe(scenario._parent.label) : scenarioLabelSafe;
 
@@ -56,6 +53,18 @@ function loggerAction (action, color, message, ...rest) {
 }
 
 async function processScenarioView (scenario, variantOrScenarioLabelSafe, scenarioLabelSafe, viewport, config, logger) {
+  const { scenarioDefaults = {} } = config;
+
+  /**
+   * @type {Object}
+   * @description Spread `scenarioDefaults` into the scenario.
+   * @default `scenario`
+   */
+  scenario = {
+    ...scenarioDefaults,
+    ...scenario
+  };
+
   if (!config.paths) {
     config.paths = {};
   }
@@ -171,7 +180,9 @@ async function processScenarioView (scenario, variantOrScenarioLabelSafe, scenar
 
     // --- DELAY ---
     if (scenario.delay > 0) {
-      await page.waitForTimeout(scenario.delay);
+      await new Promise(resolve => {
+        setTimeout(resolve, scenario.delay);
+      });
     }
 
     // --- REMOVE SELECTORS ---

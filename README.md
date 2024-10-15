@@ -1,4 +1,4 @@
-![npm@latest](https://img.shields.io/npm/v/backstopjs/latest.svg) ![GitHub Repo stars](https://img.shields.io/github/stars/garris/backstopjs) ![GitHub contributors](https://img.shields.io/github/contributors/garris/backstopjs) ![downloads](https://img.shields.io/npm/dy/backstopjs) [![Backstop Sanity Tests](https://github.com/garris/BackstopJS/actions/workflows/backstop-sanity-test.yml/badge.svg)](https://github.com/garris/BackstopJS/actions/workflows/backstop-sanity-test.yml)
+![npm@latest](https://img.shields.io/npm/v/backstopjs/latest.svg) ![GitHub Repo stars](https://img.shields.io/github/stars/garris/backstopjs) ![GitHub contributors](https://img.shields.io/github/contributors/garris/backstopjs) ![downloads](https://img.shields.io/npm/dy/backstopjs) [![Backstop CI](https://github.com/garris/BackstopJS/actions/workflows/backstop-reference-test.yml/badge.svg)](https://github.com/garris/BackstopJS/actions/workflows/backstop-reference-test.yml)
 
 
 
@@ -58,6 +58,7 @@ npm install -g backstopjs
   - [Approving Changes](#approving-changes)
 - [Using BackstopJS](#using-backstopjs)
   - [Scenario Properties](#scenario-properties)
+  - [Global Scenario Properties](#global-scenario-properties)
   - [Advanced Scenarios](#advanced-scenarios)
 - [Developing, Bug Fixing, Contributing...](#developing-bug-fixing-contributing)
 - [Troubleshooting](#troubleshooting)
@@ -113,13 +114,13 @@ Pass a `--config=<configFilePathStr>` argument to test using a different config 
 
 You may use a javascript based config file to allow comments in your config. Be sure to _export your config object as a node module_.
 
-Example: Create a backstop.config.js
+Example: Create a backstop.js
 
 ```
 module.exports = { Same object as backstop.json }
 ```
 
-and then `backstop test --config="backstop.config.js"`
+and then `backstop test --config="backstop.js"`
 
 #### Required Config Properties
 
@@ -168,7 +169,7 @@ Pass a `--filter=<image_filename_regex>` argument to promote only the test captu
 
 ### Scenario Properties
 
-Scenario properties are described throughout this document and **processed sequentially in the following order...**
+Scenario properties, [which may be global](#global-scenario-properties), are described throughout this document and **processed sequentially in the following order...**
 
 | Property                 | Description                                                                                                                    |
 |--------------------------|--------------------------------------------------------------------------------------------------------------------------------|
@@ -198,6 +199,88 @@ Scenario properties are described throughout this document and **processed seque
 | `requireSameDimensions`  | If set to true -- any change in selector size will trigger a test failure.                                                    |
 | `viewports`              | An array of screen size objects your DOM will be tested against. This configuration will override the viewports property assigned at the config root. |
 | `gotoParameters`         | An array of settings passed to page.goto(url, parameters) function.                                                           |
+
+### Global Scenario Properties
+
+One may opt to include any of the above properties at the "global" level, in the `scenarioDefaults` configuration object.
+
+<details>
+  <summary>Expand Example</summary>
+
+  ```json
+  {
+    "id": "backstop_playwright",
+    "viewports": [
+      {
+        "label": "phone",
+        "width": 320,
+        "height": 480
+      },
+      {
+        "label": "tablet",
+        "width": 1024,
+        "height": 768
+      }
+    ],
+    "onBeforeScript": "playwright/onBefore.js",
+    "onReadyScript": "playwright/onReady.js",
+    "scenarioDefaults": {
+      "cookiePath": "backstop_data/engine_scripts/cookies.json",
+      "url": "https://garris.github.io/BackstopJS/",
+      "readySelector": "",
+      "delay": 0,
+      "hideSelectors": [".getItBlock"],
+      "removeSelectors": [".logoBlock"],
+      "hoverSelector": "",
+      "clickSelector": "",
+      "postInteractionWait": 1000,
+      "selectors": [],
+      "selectorExpansion": true,
+      "misMatchThreshold" : 0.1,
+      "requireSameDimensions": true
+    },
+    "scenarios": [
+      {
+        "label": "BackstopJS Homepage",
+        "cookiePath": "backstop_data/engine_scripts/cookies.json",
+        "url": "https://garris.github.io/BackstopJS/",
+        "referenceUrl": "",
+        "readyEvent": "",
+        "readySelector": "",
+        "delay": 0,
+        "hoverSelector": "",
+        "clickSelector": "",
+        "selectors": [],
+        "selectorExpansion": true,
+        "misMatchThreshold" : 0.1,
+        "requireSameDimensions": true
+      }
+    ],
+    "paths": {
+      "bitmaps_reference": "backstop_data/bitmaps_reference",
+      "bitmaps_test": "backstop_data/bitmaps_test",
+      "engine_scripts": "backstop_data/engine_scripts",
+      "html_report": "backstop_data/html_report",
+      "ci_report": "backstop_data/ci_report"
+    },
+    "report": ["browser"],
+    "engine": "playwright",
+    "engineOptions": {
+      "args": ["--no-sandbox"]
+    },
+    "asyncCaptureLimit": 5,
+    "asyncCompareLimit": 50,
+    "debug": false,
+    "debugWindow": false,
+    "archiveReport": true,
+    "scenarioLogsInReports": true
+  }
+  ```
+
+</details>
+
+> [!IMPORTANT]
+> Global configuration is overridden at the `scenario` level. A scenario with `selectors: []` set as an empty array will yield zero selectors. E.g. `scenarioDefaults.selectors: [".fancy", ".global", ".classes"]` will be set to `[]`, as `scenario.selectors` takes precedence.
 
 ### Advanced Scenarios
 
@@ -836,13 +919,13 @@ backstop('test', {
 
 ```js
 backstop('test', {
-  config: require("./backstop.config.js")({
+  config: require("./backstop.js")({
     "foo": "bar"
   })
 });
 
 
-// Inside of `backstop.config.js` we export a function that returns the configuration object
+// Inside of `backstop.js` we export a function that returns the configuration object
 module.exports = options => {
   return {
     //you can access options.foo here
@@ -1081,14 +1164,14 @@ See the next section for running the SMOKE TEST -- Please make sure this is work
 Run the following command from your Desktop, home or project directory to check that Backstop will install and run in your environment. _Please make sure you have node version 8 or above. Windows users: Powershell is recommended._
 
 ```
-mkdir backstopSanityTest; cd backstopSanityTest; npm install backstopjs; ./node_modules/.bin/backstop init; ./node_modules/.bin/backstop test
+mkdir backstopSanityTest; cd backstopSanityTest; mkdir node_modules; npm install backstopjs; ./node_modules/.bin/backstop init; ./node_modules/.bin/backstop reference; ./node_modules/.bin/backstop test
 
 ```
 
 Here is a sanity test which also uses docker...
 
 ```
-mkdir backstopSanityTest; cd backstopSanityTest; npm install backstopjs; ./node_modules/.bin/backstop init; ./node_modules/.bin/backstop test --docker
+mkdir backstopSanityTest; cd backstopSanityTest; mkdir node_modules; npm install backstopjs; ./node_modules/.bin/backstop init; ./node_modules/.bin/backstop reference --docker; ./node_modules/.bin/backstop test --docker
 ```
 
 <!-- omit from toc -->
